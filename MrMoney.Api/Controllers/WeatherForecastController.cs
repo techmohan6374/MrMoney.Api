@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Xml.Linq;
 
 namespace MrMoney.Api.Controllers
 {
@@ -28,6 +29,11 @@ namespace MrMoney.Api.Controllers
                 Summary = Summaries[Random.Shared.Next(Summaries.Length)]
             })
             .ToArray();
+        }
+        [HttpGet("hello")]
+        public string GetHello()
+        {
+            return "Hello, World!";
         }
     }
 }
