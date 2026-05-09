@@ -1,0 +1,15 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs/MrMoney.Api/CopilotIndices/17.14.1569.27729
+/.vs/MrMoney.Api/FileContentIndex
+/MrMoney.Api/obj/Debug/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs
+/MrMoney.Api/obj/Debug/net8.0/MrMoney.Api.AssemblyInfo.cs
+/MrMoney.Api/obj/Debug/net8.0/MrMoney.Api.AssemblyInfoInputs.cache
+/MrMoney.Api/obj/Debug/net8.0/MrMoney.Api.assets.cache
+/MrMoney.Api/obj/Debug/net8.0/MrMoney.Api.GeneratedMSBuildEditorConfig.editorconfig
+/MrMoney.Api/obj/Debug/net8.0/rpswa.dswa.cache.json
+/MrMoney.Api/obj/MrMoney.Api.csproj.nuget.dgspec.json
+/MrMoney.Api/obj/project.assets.json
+/MrMoney.Api/obj/project.nuget.cache
