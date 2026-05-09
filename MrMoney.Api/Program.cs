@@ -56,7 +56,14 @@ var app = builder.Build();
 
 app.UseSwagger();
 
-app.UseSwaggerUI();
+app.UseSwaggerUI(options =>
+{
+    options.SwaggerEndpoint(
+        "/swagger/v1/swagger.json",
+        "MrMoney API V1");
+
+    options.RoutePrefix = string.Empty;
+});
 
 app.UseCors("AllowAll");
 
