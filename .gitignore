@@ -16,3 +16,8 @@
 /.vs/MrMoney.Api/v17/.suo
 /.vs/MrMoney.Api/v17/DocumentLayout.json
 /.vs/MrMoney.Api/v17
+/.vs/MrMoney.Api/config
+/.vs/MrMoney.Api/DesignTimeBuild
+/.vs/ProjectEvaluation
+/MrMoney.Api/bin/Debug/net8.0
+/MrMoney.Api/obj/Debug/net8.0
