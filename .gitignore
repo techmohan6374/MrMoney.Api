@@ -22,3 +22,7 @@
 /MrMoney.Api/bin/Debug/net8.0
 /MrMoney.Api/obj/Debug/net8.0
 /MrMoney.Api/obj/Debug/net8.0/MrMoney.Api.csproj.AssemblyReference.cache
+
+# Google Service Account key — NEVER commit this
+google-service-account.json
+/.vs/MrMoney.Api/CopilotIndices/17.14.698.11175
