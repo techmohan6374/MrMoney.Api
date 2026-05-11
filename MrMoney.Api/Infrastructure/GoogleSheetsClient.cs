@@ -22,40 +22,39 @@ namespace MrMoney.Api.Infrastructure
         private readonly SheetsService _service;
         private readonly string _spreadsheetId;
 
-        public GoogleSheetsClient(IConfiguration configuration, IWebHostEnvironment env)
+        public GoogleSheetsClient(IConfiguration configuration)
         {
-            var configuredPath = configuration["GoogleSheets:ServiceAccountKeyPath"]
-                ?? throw new InvalidOperationException("GoogleSheets:ServiceAccountKeyPath is not configured.");
-
             _spreadsheetId = configuration["GoogleSheets:SpreadsheetId"]
-                ?? throw new InvalidOperationException("GoogleSheets:SpreadsheetId is not configured.");
+                ?? throw new InvalidOperationException("SpreadsheetId missing");
 
-            // Resolve the key file path: try relative to ContentRoot first, then absolute
-            var keyPath = Path.IsPathRooted(configuredPath)
-                ? configuredPath
-                : Path.Combine(env.ContentRootPath, configuredPath);
+            var projectId = configuration["GoogleServiceAccount:ProjectId"];
+            var privateKeyId = configuration["GoogleServiceAccount:PrivateKeyId"];
+            var privateKey = configuration["GoogleServiceAccount:PrivateKey"];
+            var clientEmail = configuration["GoogleServiceAccount:ClientEmail"];
+            var clientId = configuration["GoogleServiceAccount:ClientId"];
 
-            // Also try one level up (solution root) if not found in ContentRoot
-            if (!File.Exists(keyPath))
-            {
-                var solutionRoot = Path.GetFullPath(Path.Combine(env.ContentRootPath, ".."));
-                keyPath = Path.Combine(solutionRoot, configuredPath);
-            }
+            if (string.IsNullOrWhiteSpace(privateKey))
+                throw new Exception("PrivateKey missing");
 
-            if (!File.Exists(keyPath))
-                throw new FileNotFoundException(
-                    $"Google service account key file not found. Searched: '{keyPath}'. " +
-                    "Place 'google-service-account.json' in the project folder or solution root.");
+            privateKey = privateKey.Replace("\\n", "\n");
 
-            GoogleCredential credential;
-            using (var stream = new FileStream(keyPath, FileMode.Open, FileAccess.Read))
-            {
-#pragma warning disable CS0618 // GoogleCredential.FromStream is the standard pattern for service accounts
-                credential = GoogleCredential
-                    .FromStream(stream)
-                    .CreateScoped(SheetsService.Scope.Spreadsheets);
-#pragma warning restore CS0618
-            }
+            var json = $@"
+            {{
+              ""type"": ""service_account"",
+              ""project_id"": ""{projectId}"",
+              ""private_key_id"": ""{privateKeyId}"",
+              ""private_key"": ""{privateKey}"",
+              ""client_email"": ""{clientEmail}"",
+              ""client_id"": ""{clientId}"",
+              ""auth_uri"": ""https://accounts.google.com/o/oauth2/auth"",
+              ""token_uri"": ""https://oauth2.googleapis.com/token"",
+              ""auth_provider_x509_cert_url"": ""https://www.googleapis.com/oauth2/v1/certs"",
+              ""client_x509_cert_url"": ""https://www.googleapis.com/robot/v1/metadata/x509/{Uri.EscapeDataString(clientEmail)}""
+            }}";
+
+            var credential = GoogleCredential
+                .FromJson(json)
+                .CreateScoped(SheetsService.Scope.Spreadsheets);
 
             _service = new SheetsService(new BaseClientService.Initializer
             {

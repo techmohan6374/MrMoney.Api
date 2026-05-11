@@ -14,44 +14,40 @@ namespace MrMoney.Api.Infrastructure
         private readonly DriveService _service;
         private readonly string _avatarFolderId; // optional — empty = Drive root
 
-        public GoogleDriveClient(IConfiguration configuration, IWebHostEnvironment env)
+        public GoogleDriveClient(IConfiguration configuration)
         {
-            var configuredPath = configuration["GoogleDrive:ServiceAccountKeyPath"]
-                ?? throw new InvalidOperationException("GoogleDrive:ServiceAccountKeyPath is not configured.");
-
             _avatarFolderId = configuration["GoogleDrive:AvatarFolderId"] ?? string.Empty;
-            Console.WriteLine($"[DEBUG] GoogleDriveClient: AvatarFolderId loaded as '{_avatarFolderId}'");
 
+            var projectId = configuration["GoogleServiceAccount:ProjectId"];
+            var privateKeyId = configuration["GoogleServiceAccount:PrivateKeyId"];
+            var privateKey = configuration["GoogleServiceAccount:PrivateKey"];
+            var clientEmail = configuration["GoogleServiceAccount:ClientEmail"];
+            var clientId = configuration["GoogleServiceAccount:ClientId"];
 
-            // Resolve key file path (same logic as GoogleSheetsClient)
-            var keyPath = Path.IsPathRooted(configuredPath)
-                ? configuredPath
-                : Path.Combine(env.ContentRootPath, configuredPath);
+            privateKey = privateKey.Replace("\\n", "\n");
 
-            if (!System.IO.File.Exists(keyPath))
-            {
-                var solutionRoot = Path.GetFullPath(Path.Combine(env.ContentRootPath, ".."));
-                keyPath = Path.Combine(solutionRoot, configuredPath);
-            }
+            var json = $@"
+            {{
+              ""type"": ""service_account"",
+              ""project_id"": ""{projectId}"",
+              ""private_key_id"": ""{privateKeyId}"",
+              ""private_key"": ""{privateKey}"",
+              ""client_email"": ""{clientEmail}"",
+              ""client_id"": ""{clientId}"",
+              ""auth_uri"": ""https://accounts.google.com/o/oauth2/auth"",
+              ""token_uri"": ""https://oauth2.googleapis.com/token"",
+              ""auth_provider_x509_cert_url"": ""https://www.googleapis.com/oauth2/v1/certs"",
+              ""client_x509_cert_url"": ""https://www.googleapis.com/robot/v1/metadata/x509/{Uri.EscapeDataString(clientEmail)}""
+            }}";
 
-            if (!System.IO.File.Exists(keyPath))
-                throw new FileNotFoundException(
-                    $"Google service account key not found at '{keyPath}'.");
-
-            GoogleCredential credential;
-            using (var stream = new FileStream(keyPath, FileMode.Open, FileAccess.Read))
-            {
-#pragma warning disable CS0618
-                credential = GoogleCredential
-                    .FromStream(stream)
-                    .CreateScoped(DriveService.Scope.Drive);
-#pragma warning restore CS0618
-            }
+            var credential = GoogleCredential
+                .FromJson(json)
+                .CreateScoped(DriveService.Scope.Drive);
 
             _service = new DriveService(new BaseClientService.Initializer
             {
                 HttpClientInitializer = credential,
-                ApplicationName       = "MrMoney"
+                ApplicationName = "MrMoney"
             });
         }
 
