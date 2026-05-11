@@ -13,7 +13,7 @@ namespace MrMoney.Api.Controllers
     public class UsersController : ControllerBase
     {
         private readonly IUserService _userService;
-        private readonly GoogleDriveClient _driveClient;
+        private readonly CloudinaryClient _cloudinaryClient;
 
         // Allowed image MIME types
         private static readonly HashSet<string> AllowedMimeTypes = new(StringComparer.OrdinalIgnoreCase)
@@ -21,10 +21,10 @@ namespace MrMoney.Api.Controllers
             "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"
         };
 
-        public UsersController(IUserService userService, GoogleDriveClient driveClient)
+        public UsersController(IUserService userService, CloudinaryClient cloudinaryClient)
         {
             _userService = userService;
-            _driveClient = driveClient;
+            _cloudinaryClient = cloudinaryClient;
         }
 
         /// <summary>Returns the authenticated user's profile.</summary>
@@ -61,7 +61,7 @@ namespace MrMoney.Api.Controllers
         }
 
         /// <summary>
-        /// Uploads a new avatar image to Google Drive and updates the user's picture URL.
+        /// Uploads a new avatar image to Cloudinary and updates the user's picture URL.
         /// Accepts multipart/form-data with a single file field named "file".
         /// Max size: 2 MB.
         /// </summary>
@@ -82,33 +82,28 @@ namespace MrMoney.Api.Controllers
             {
                 var userId = GetUserId();
 
-                // Get current profile to find the old Drive file ID (if any)
+                // Get current profile to find the old Cloudinary public ID (if any) for deletion
                 var currentProfile = await _userService.GetProfileAsync(userId);
-                var oldFileId      = GoogleDriveClient.ExtractFileId(currentProfile.Picture);
+                var oldPublicId    = CloudinaryClient.ExtractPublicId(currentProfile.Picture);
 
-                // Upload to Google Drive — replaces old file
+                // Upload to Cloudinary — replaces/deletes old file if publicId is found
                 string pictureUrl;
                 using (var stream = file.OpenReadStream())
                 {
-                    var safeFileName = $"avatar_{userId}_{Path.GetRandomFileName()}{Path.GetExtension(file.FileName)}";
-                    pictureUrl = await _driveClient.UploadAvatarAsync(
+                    var safeFileName = $"avatar_{userId}_{Path.GetRandomFileName()}";
+                    pictureUrl = await _cloudinaryClient.UploadAvatarAsync(
                         stream,
                         safeFileName,
-                        file.ContentType,
-                        oldFileId);
+                        oldPublicId);
                 }
 
-                // Save the new Drive URL to the user profile
+                // Save the new Cloudinary URL to the user profile
                 var updated = await _userService.UpdateProfileAsync(userId, new UpdateUserProfileRequest
                 {
                     Picture = pictureUrl
                 });
 
                 return Ok(new UploadAvatarResponse { PictureUrl = updated.Picture });
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
             }
             catch (Exception ex)
             {

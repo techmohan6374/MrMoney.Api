@@ -80,7 +80,7 @@ builder.Services
 // ── Google Sheets Infrastructure ──────────────────────────────────────────────
 // Registered as Singleton — one SheetsService instance shared across all requests
 builder.Services.AddSingleton<GoogleSheetsClient>();
-builder.Services.AddSingleton<GoogleDriveClient>();
+builder.Services.AddSingleton<CloudinaryClient>();
 
 // ── Repositories (Scoped) ─────────────────────────────────────────────────────
 builder.Services.AddScoped<IUserRepository,        UserRepository>();

@@ -7,8 +7,7 @@ namespace MrMoney.Api.DTOs
         [StringLength(100)]
         public string? Name { get; set; }
 
-        /// <summary>Direct URL to the avatar (Google Drive public link or Google OAuth picture URL).</summary>
-        [StringLength(2048)]
+        [StringLength(100000)]
         public string? Picture { get; set; }
 
         [RegularExpression("^(INR|USD|EUR|GBP|JPY)$", ErrorMessage = "Currency must be INR, USD, EUR, GBP, or JPY.")]
