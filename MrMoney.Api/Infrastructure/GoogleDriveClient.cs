@@ -23,6 +23,7 @@ namespace MrMoney.Api.Infrastructure
             var projectId = configuration["GoogleServiceAccount:ProjectId"];
             var privateKeyId = configuration["GoogleServiceAccount:PrivateKeyId"];
             var privateKey = configuration["GoogleServiceAccount:PrivateKey"];
+            privateKey = privateKey?.Replace("\\n", "\n");
             var clientEmail = configuration["GoogleServiceAccount:ClientEmail"];
             var clientId = configuration["GoogleServiceAccount:ClientId"];
 

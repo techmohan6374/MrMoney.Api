@@ -31,8 +31,13 @@ namespace MrMoney.Api.Infrastructure
             var projectId = configuration["GoogleServiceAccount:ProjectId"];
             var privateKeyId = configuration["GoogleServiceAccount:PrivateKeyId"];
             var privateKey = configuration["GoogleServiceAccount:PrivateKey"];
+            privateKey = privateKey?.Replace("\\n", "\n");
             var clientEmail = configuration["GoogleServiceAccount:ClientEmail"];
             var clientId = configuration["GoogleServiceAccount:ClientId"];
+
+            Console.WriteLine("ClientEmail: " + clientEmail);
+            Console.WriteLine("ProjectId: " + projectId);
+            Console.WriteLine("PrivateKey: " + privateKey?.Substring(0, 50));
 
             if (string.IsNullOrWhiteSpace(privateKey))
                 throw new Exception("PrivateKey missing");
