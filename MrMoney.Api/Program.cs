@@ -10,7 +10,10 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Controllers ───────────────────────────────────────────────────────────────
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(opts =>
+{
+    opts.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+});
 Env.Load("MrMoney.Api.env");
 builder.Configuration
     .AddJsonFile("appsettings.json", optional: true)

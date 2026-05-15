@@ -16,6 +16,12 @@ namespace MrMoney.Api.Repositories
             _sheets = sheets;
         }
 
+        private static string NormalizeCell(string? s)
+            => (s ?? string.Empty).Trim();
+
+        private static bool CellEquals(string? a, string? b) =>
+            string.Equals(NormalizeCell(a), NormalizeCell(b), StringComparison.Ordinal);
+
         // ── Read ─────────────────────────────────────────────────────────────
 
         public async Task<List<Transaction>> GetAllByUserAsync(string userId)
@@ -26,7 +32,7 @@ namespace MrMoney.Api.Repositories
             for (int i = 1; i < rows.Count; i++)
             {
                 var row = rows[i];
-                if (GetCell(row, 1) == userId)
+                if (CellEquals(GetCell(row, 1), userId))
                     result.Add(MapRowToTransaction(row));
             }
 
@@ -39,7 +45,7 @@ namespace MrMoney.Api.Repositories
             for (int i = 1; i < rows.Count; i++)
             {
                 var row = rows[i];
-                if (GetCell(row, 0) == transactionId && GetCell(row, 1) == userId)
+                if (CellEquals(GetCell(row, 0), transactionId) && CellEquals(GetCell(row, 1), userId))
                     return MapRowToTransaction(row);
             }
             return null;
@@ -58,7 +64,7 @@ namespace MrMoney.Api.Repositories
             var rows = await _sheets.GetAllRowsAsync(GoogleSheetsClient.TransactionsSheet);
             for (int i = 1; i < rows.Count; i++)
             {
-                if (GetCell(rows[i], 0) == transaction.Id && GetCell(rows[i], 1) == transaction.UserId)
+                if (CellEquals(GetCell(rows[i], 0), transaction.Id) && CellEquals(GetCell(rows[i], 1), transaction.UserId))
                 {
                     await _sheets.UpdateRowAsync(GoogleSheetsClient.TransactionsSheet, i + 1, MapTransactionToRow(transaction));
                     return transaction;
@@ -72,7 +78,7 @@ namespace MrMoney.Api.Repositories
             var rows = await _sheets.GetAllRowsAsync(GoogleSheetsClient.TransactionsSheet);
             for (int i = 1; i < rows.Count; i++)
             {
-                if (GetCell(rows[i], 0) == transactionId && GetCell(rows[i], 1) == userId)
+                if (CellEquals(GetCell(rows[i], 0), transactionId) && CellEquals(GetCell(rows[i], 1), userId))
                 {
                     await _sheets.DeleteRowAsync(GoogleSheetsClient.TransactionsSheet, i + 1);
                     return;

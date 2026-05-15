@@ -16,6 +16,12 @@ namespace MrMoney.Api.Repositories
             _sheets = sheets;
         }
 
+        private static string NormalizeCell(string? s)
+            => (s ?? string.Empty).Trim();
+
+        private static bool CellEquals(string? a, string? b) =>
+            string.Equals(NormalizeCell(a), NormalizeCell(b), StringComparison.Ordinal);
+
         // ── Read ─────────────────────────────────────────────────────────────
 
         public async Task<List<Account>> GetAllByUserAsync(string userId)
@@ -26,7 +32,7 @@ namespace MrMoney.Api.Repositories
             for (int i = 1; i < rows.Count; i++)
             {
                 var row = rows[i];
-                if (GetCell(row, 1) == userId)
+                if (CellEquals(GetCell(row, 1), userId))
                     result.Add(MapRowToAccount(row));
             }
 
@@ -39,7 +45,7 @@ namespace MrMoney.Api.Repositories
             for (int i = 1; i < rows.Count; i++)
             {
                 var row = rows[i];
-                if (GetCell(row, 0) == accountId && GetCell(row, 1) == userId)
+                if (CellEquals(GetCell(row, 0), accountId) && CellEquals(GetCell(row, 1), userId))
                     return MapRowToAccount(row);
             }
             return null;
@@ -58,7 +64,7 @@ namespace MrMoney.Api.Repositories
             var rows = await _sheets.GetAllRowsAsync(GoogleSheetsClient.AccountsSheet);
             for (int i = 1; i < rows.Count; i++)
             {
-                if (GetCell(rows[i], 0) == account.Id && GetCell(rows[i], 1) == account.UserId)
+                if (CellEquals(GetCell(rows[i], 0), account.Id) && CellEquals(GetCell(rows[i], 1), account.UserId))
                 {
                     await _sheets.UpdateRowAsync(GoogleSheetsClient.AccountsSheet, i + 1, MapAccountToRow(account));
                     return account;
@@ -72,7 +78,7 @@ namespace MrMoney.Api.Repositories
             var rows = await _sheets.GetAllRowsAsync(GoogleSheetsClient.AccountsSheet);
             for (int i = 1; i < rows.Count; i++)
             {
-                if (GetCell(rows[i], 0) == accountId && GetCell(rows[i], 1) == userId)
+                if (CellEquals(GetCell(rows[i], 0), accountId) && CellEquals(GetCell(rows[i], 1), userId))
                 {
                     await _sheets.DeleteRowAsync(GoogleSheetsClient.AccountsSheet, i + 1);
                     return;

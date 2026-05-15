@@ -21,8 +21,9 @@ namespace MrMoney.Api.Services
 
         public async Task<AccountResponse> GetByIdAsync(string userId, string accountId)
         {
-            var account = await _accountRepo.GetByIdAsync(userId, accountId)
-                ?? throw new KeyNotFoundException($"Account '{accountId}' not found.");
+            var id = accountId.Trim();
+            var account = await _accountRepo.GetByIdAsync(userId, id)
+                ?? throw new KeyNotFoundException($"Account '{id}' not found.");
             return MapToResponse(account);
         }
 
@@ -51,8 +52,9 @@ namespace MrMoney.Api.Services
 
         public async Task<AccountResponse> UpdateAsync(string userId, string accountId, UpdateAccountRequest request)
         {
-            var account = await _accountRepo.GetByIdAsync(userId, accountId)
-                ?? throw new KeyNotFoundException($"Account '{accountId}' not found.");
+            var id = accountId.Trim();
+            var account = await _accountRepo.GetByIdAsync(userId, id)
+                ?? throw new KeyNotFoundException($"Account '{id}' not found.");
 
             // If setting as default, clear existing default first
             if (request.IsDefault == true && !account.IsDefault)
@@ -71,10 +73,11 @@ namespace MrMoney.Api.Services
 
         public async Task DeleteAsync(string userId, string accountId)
         {
-            var account = await _accountRepo.GetByIdAsync(userId, accountId)
-                ?? throw new KeyNotFoundException($"Account '{accountId}' not found.");
+            var id = accountId.Trim();
+            _ = await _accountRepo.GetByIdAsync(userId, id)
+                ?? throw new KeyNotFoundException($"Account '{id}' not found.");
 
-            await _accountRepo.DeleteAsync(userId, accountId);
+            await _accountRepo.DeleteAsync(userId, id);
         }
 
         // ── Helpers ──────────────────────────────────────────────────────────

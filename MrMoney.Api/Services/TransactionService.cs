@@ -81,14 +81,14 @@ namespace MrMoney.Api.Services
         public async Task<TransactionResponse> CreateAsync(string userId, CreateTransactionRequest request)
         {
             // Validate account belongs to user
-            var account = await _accountRepo.GetByIdAsync(userId, request.AccountId)
+            var account = await _accountRepo.GetByIdAsync(userId, request.AccountId.Trim())
                 ?? throw new KeyNotFoundException($"Account '{request.AccountId}' not found.");
 
             var tx = new Transaction
             {
                 Id          = Guid.NewGuid().ToString(),
                 UserId      = userId,
-                AccountId   = request.AccountId,
+                AccountId   = request.AccountId.Trim(),
                 Name        = request.Name.Trim(),
                 Category    = request.Category.Trim(),
                 Amount      = request.Amount,
@@ -116,13 +116,47 @@ namespace MrMoney.Api.Services
             var tx = await _txRepo.GetByIdAsync(userId, transactionId)
                 ?? throw new KeyNotFoundException($"Transaction '{transactionId}' not found.");
 
+            var oldAccountId = tx.AccountId;
+            var oldAmount      = tx.Amount;
+            var oldType        = tx.Type;
+
             if (request.Name        != null) tx.Name        = request.Name.Trim();
             if (request.Category    != null) tx.Category    = request.Category.Trim();
             if (request.Amount      != null) tx.Amount      = request.Amount.Value;
             if (request.Type        != null) tx.Type        = request.Type.ToLower();
-            if (request.AccountId   != null) tx.AccountId   = request.AccountId;
+            if (request.AccountId   != null) tx.AccountId   = request.AccountId.Trim();
             if (request.Description != null) tx.Description = request.Description.Trim();
             if (request.Date        != null) tx.Date        = request.Date.Value.ToUniversalTime();
+
+            var newAccountId = tx.AccountId;
+            var newAmount    = tx.Amount;
+            var newType      = tx.Type;
+
+            if (oldAccountId != newAccountId || oldAmount != newAmount || !string.Equals(oldType, newType, StringComparison.OrdinalIgnoreCase))
+            {
+                var oldContrib = BalanceContribution(oldType, oldAmount);
+                var newContrib = BalanceContribution(newType, newAmount);
+
+                if (string.Equals(oldAccountId, newAccountId, StringComparison.OrdinalIgnoreCase))
+                {
+                    var acc = await _accountRepo.GetByIdAsync(userId, newAccountId)
+                        ?? throw new KeyNotFoundException($"Account '{newAccountId}' not found.");
+                    acc.Balance -= oldContrib;
+                    acc.Balance += newContrib;
+                    await _accountRepo.UpdateAsync(acc);
+                }
+                else
+                {
+                    var oldAcc = await _accountRepo.GetByIdAsync(userId, oldAccountId)
+                        ?? throw new KeyNotFoundException($"Account '{oldAccountId}' not found.");
+                    var newAcc = await _accountRepo.GetByIdAsync(userId, newAccountId)
+                        ?? throw new KeyNotFoundException($"Account '{newAccountId}' not found.");
+                    oldAcc.Balance -= oldContrib;
+                    newAcc.Balance += newContrib;
+                    await _accountRepo.UpdateAsync(oldAcc);
+                    await _accountRepo.UpdateAsync(newAcc);
+                }
+            }
 
             var updated = await _txRepo.UpdateAsync(tx);
             return MapToResponse(updated);
@@ -132,9 +166,14 @@ namespace MrMoney.Api.Services
 
         public async Task DeleteAsync(string userId, string transactionId)
         {
-            _ = await _txRepo.GetByIdAsync(userId, transactionId)
+            var tx = await _txRepo.GetByIdAsync(userId, transactionId)
                 ?? throw new KeyNotFoundException($"Transaction '{transactionId}' not found.");
 
+            var account = await _accountRepo.GetByIdAsync(userId, tx.AccountId)
+                ?? throw new KeyNotFoundException($"Account '{tx.AccountId}' not found.");
+
+            account.Balance -= BalanceContribution(tx.Type, tx.Amount);
+            await _accountRepo.UpdateAsync(account);
             await _txRepo.DeleteAsync(userId, transactionId);
         }
 
@@ -142,14 +181,17 @@ namespace MrMoney.Api.Services
 
         public async Task<(TransactionResponse From, TransactionResponse To)> TransferAsync(string userId, TransferRequest request)
         {
-            if (request.FromAccountId == request.ToAccountId)
+            var fromId = request.FromAccountId.Trim();
+            var toId   = request.ToAccountId.Trim();
+
+            if (string.Equals(fromId, toId, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Source and destination accounts must be different.");
 
-            var fromAccount = await _accountRepo.GetByIdAsync(userId, request.FromAccountId)
-                ?? throw new KeyNotFoundException($"Source account '{request.FromAccountId}' not found.");
+            var fromAccount = await _accountRepo.GetByIdAsync(userId, fromId)
+                ?? throw new KeyNotFoundException($"Source account '{fromId}' not found.");
 
-            var toAccount = await _accountRepo.GetByIdAsync(userId, request.ToAccountId)
-                ?? throw new KeyNotFoundException($"Destination account '{request.ToAccountId}' not found.");
+            var toAccount = await _accountRepo.GetByIdAsync(userId, toId)
+                ?? throw new KeyNotFoundException($"Destination account '{toId}' not found.");
 
             if (fromAccount.Balance < request.Amount)
                 throw new InvalidOperationException("Insufficient balance in source account.");
@@ -162,7 +204,7 @@ namespace MrMoney.Api.Services
             {
                 Id          = Guid.NewGuid().ToString(),
                 UserId      = userId,
-                AccountId   = request.FromAccountId,
+                AccountId   = fromId,
                 Name        = "Transfer Out",
                 Category    = "Transfer",
                 Amount      = request.Amount,
@@ -178,7 +220,7 @@ namespace MrMoney.Api.Services
             {
                 Id          = Guid.NewGuid().ToString(),
                 UserId      = userId,
-                AccountId   = request.ToAccountId,
+                AccountId   = toId,
                 Name        = "Transfer In",
                 Category    = "Transfer",
                 Amount      = request.Amount,
@@ -199,6 +241,14 @@ namespace MrMoney.Api.Services
             await _txRepo.CreateAsync(txIn);
 
             return (MapToResponse(txOut), MapToResponse(txIn));
+        }
+
+        /// <summary>Ledger delta applied to an account when this transaction was recorded (same rule as <see cref="CreateAsync"/>).</summary>
+        private static decimal BalanceContribution(string type, decimal amount)
+        {
+            return string.Equals(type, "income", StringComparison.OrdinalIgnoreCase)
+                ? amount
+                : -amount;
         }
 
         // ── Mapping ──────────────────────────────────────────────────────────
