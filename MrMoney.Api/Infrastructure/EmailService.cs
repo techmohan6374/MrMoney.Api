@@ -21,7 +21,7 @@ namespace MrMoney.Api.Infrastructure
         public async Task SendNewOrderEmailAsync(Order order)
         {
             var host = "smtp.gmail.com";
-            var port = 587;
+            var port = 465; // Use port 465 for SSL on connect
             var username = "mohanmano2020@gmail.com";
             var password = "vkwk phnl duhc wqpk"; // Hardcoded Google App password
 
@@ -58,7 +58,10 @@ namespace MrMoney.Api.Infrastructure
 
             using (var client = new SmtpClient())
             {
-                await client.ConnectAsync(host, port, MailKit.Security.SecureSocketOptions.StartTls);
+                // Bypass certificate validation to prevent SSL handshake hanging in Linux containers
+                client.ServerCertificateValidationCallback = (s, c, h, e) => true;
+
+                await client.ConnectAsync(host, port, MailKit.Security.SecureSocketOptions.SslOnConnect);
                 await client.AuthenticateAsync(username, password);
                 await client.SendAsync(message);
                 await client.DisconnectAsync(true);
