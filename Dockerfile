@@ -12,6 +12,7 @@ WORKDIR /app
 COPY --from=build /app/publish .
 
 ENV ASPNETCORE_URLS=http://+:8080
+ENV DOTNET_hostBuilder__reloadConfigOnChange=false
 
 EXPOSE 8080
 
