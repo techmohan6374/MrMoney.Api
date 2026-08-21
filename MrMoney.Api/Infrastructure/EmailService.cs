@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Net;
-using System.Net.Mail;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using MrMoney.Api.Models;
 using MrMoney.Api.Repositories;
+using MimeKit;
+using MailKit.Net.Smtp;
 
 namespace MrMoney.Api.Infrastructure
 {
@@ -33,21 +33,26 @@ namespace MrMoney.Api.Infrastructure
                 return;
             }
 
-            var mail = new MailMessage();
-            mail.From = new MailAddress(username, "StarGraphix Order Notifications");
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress("StarGraphix Order Notifications", username));
             foreach (var email in adminEmails)
             {
-                mail.To.Add(email);
+                message.To.Add(new MailboxAddress("", email));
             }
-            mail.Subject = $"New Order Placed: #{order.Id} - ₹{order.Total:N0}";
-            mail.IsBodyHtml = true;
-            mail.Body = GenerateHtmlBody(order);
+            message.Subject = $"New Order Placed: #{order.Id} - ₹{order.Total:N0}";
 
-            using (var smtp = new SmtpClient(host, port))
+            var bodyBuilder = new BodyBuilder
             {
-                smtp.Credentials = new NetworkCredential(username, password);
-                smtp.EnableSsl = true;
-                await smtp.SendMailAsync(mail);
+                HtmlBody = GenerateHtmlBody(order)
+            };
+            message.Body = bodyBuilder.ToMessageBody();
+
+            using (var client = new SmtpClient())
+            {
+                await client.ConnectAsync(host, port, MailKit.Security.SecureSocketOptions.StartTls);
+                await client.AuthenticateAsync(username, password);
+                await client.SendAsync(message);
+                await client.DisconnectAsync(true);
             }
         }
 
