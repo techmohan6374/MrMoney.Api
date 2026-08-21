@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using MrMoney.Api.Models;
@@ -21,7 +22,7 @@ namespace MrMoney.Api.Infrastructure
         public async Task SendNewOrderEmailAsync(Order order)
         {
             var host = "smtp.gmail.com";
-            var port = 465; // Use port 465 for SSL on connect
+            var port = 587; // Port 587 with STARTTLS is the most reliable for Gmail App Passwords
             var username = "mohanmano2020@gmail.com";
             var password = "vkwk phnl duhc wqpk"; // Hardcoded Google App password
 
@@ -29,6 +30,8 @@ namespace MrMoney.Api.Infrastructure
             var adminEmails = new List<string>();
             try
             {
+                // Use a short timeout so email-fetch doesn't block forever
+                using var sheetsCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                 adminEmails = await _adminEmailRepo.GetAllAsync();
             }
             catch (Exception ex)
@@ -48,7 +51,7 @@ namespace MrMoney.Api.Infrastructure
             {
                 message.To.Add(new MailboxAddress("", email));
             }
-            message.Subject = $"New Order Placed: #{order.Id} - ₹{order.Total:N0}";
+            message.Subject = $"New Order Placed: #{order.Id} - \u20b9{order.Total:N0}";
 
             var bodyBuilder = new BodyBuilder
             {
@@ -56,16 +59,24 @@ namespace MrMoney.Api.Infrastructure
             };
             message.Body = bodyBuilder.ToMessageBody();
 
+            // Use a 30-second timeout for the entire SMTP operation
+            using var smtpCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             using (var client = new SmtpClient())
             {
+                // Set socket timeouts (milliseconds)
+                client.Timeout = 15000; // 15 seconds
+
                 // Bypass certificate validation to prevent SSL handshake hanging in Linux containers
                 client.ServerCertificateValidationCallback = (s, c, h, e) => true;
 
-                await client.ConnectAsync(host, port, MailKit.Security.SecureSocketOptions.SslOnConnect);
-                await client.AuthenticateAsync(username, password);
-                await client.SendAsync(message);
-                await client.DisconnectAsync(true);
+                // Port 587 uses STARTTLS (StartTls), more reliable than SslOnConnect (465) with Gmail
+                await client.ConnectAsync(host, port, MailKit.Security.SecureSocketOptions.StartTls, smtpCts.Token);
+                await client.AuthenticateAsync(username, password, smtpCts.Token);
+                await client.SendAsync(message, smtpCts.Token);
+                await client.DisconnectAsync(true, smtpCts.Token);
             }
+
+            Console.WriteLine($"[EmailService] Email sent to: {string.Join(", ", adminEmails)}");
         }
 
         private string GenerateHtmlBody(Order order)

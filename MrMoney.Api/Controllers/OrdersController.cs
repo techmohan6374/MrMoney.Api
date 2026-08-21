@@ -93,15 +93,20 @@ namespace MrMoney.Api.Controllers
 
                 var created = await _orderRepo.CreateAsync(order);
 
-                // Send email notification to admin asynchronously
-                try
+                // Fire-and-forget: send email in background so the API responds immediately
+                var emailService = _emailService;
+                _ = Task.Run(async () =>
                 {
-                    await _emailService.SendNewOrderEmailAsync(created);
-                }
-                catch (Exception mailEx)
-                {
-                    Console.WriteLine($"Error sending order confirmation email: {mailEx.Message}");
-                }
+                    try
+                    {
+                        await emailService.SendNewOrderEmailAsync(created);
+                        Console.WriteLine($"Order email sent successfully for Order #{created.Id}");
+                    }
+                    catch (Exception mailEx)
+                    {
+                        Console.WriteLine($"Error sending order confirmation email for Order #{created.Id}: {mailEx.Message}");
+                    }
+                });
 
                 return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
             }
