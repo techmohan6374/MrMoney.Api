@@ -83,6 +83,7 @@ builder.Services
 builder.Services.AddSingleton<GoogleSheetsClient>();
 builder.Services.AddSingleton<CloudinaryClient>();
 builder.Services.AddSingleton<LocalFileStorage>();
+builder.Services.AddSingleton<EmailService>();
 
 // ── Repositories (Scoped) ─────────────────────────────────────────────────────
 builder.Services.AddScoped<IUserRepository,        UserRepository>();

@@ -25,9 +25,13 @@ namespace MrMoney.Api.Repositories
 
             var rows = await _sheets.GetAllRowsAsync(GoogleSheetsClient.UsersSheet);
             var list = new List<UserProfile>();
-            for (int i = 1; i < rows.Count; i++)
+            if (rows.Count > 0)
             {
-                list.Add(MapRowToUser(rows[i]));
+                var startIdx = GetCell(rows[0], 0).Equals("Id", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+                for (int i = startIdx; i < rows.Count; i++)
+                {
+                    list.Add(MapRowToUser(rows[i]));
+                }
             }
             return list;
         }

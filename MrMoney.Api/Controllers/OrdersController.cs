@@ -21,11 +21,13 @@ namespace MrMoney.Api.Controllers
     {
         private readonly IOrderRepository _orderRepo;
         private readonly CloudinaryClient _cloudinaryClient;
+        private readonly EmailService _emailService;
 
-        public OrdersController(IOrderRepository orderRepo, CloudinaryClient cloudinaryClient)
+        public OrdersController(IOrderRepository orderRepo, CloudinaryClient cloudinaryClient, EmailService emailService)
         {
             _orderRepo = orderRepo;
             _cloudinaryClient = cloudinaryClient;
+            _emailService = emailService;
         }
 
         [HttpGet]
@@ -90,6 +92,17 @@ namespace MrMoney.Api.Controllers
                 order.PlacedAt = DateTime.UtcNow;
 
                 var created = await _orderRepo.CreateAsync(order);
+
+                // Send email notification to admin asynchronously
+                try
+                {
+                    await _emailService.SendNewOrderEmailAsync(created);
+                }
+                catch (Exception mailEx)
+                {
+                    Console.WriteLine($"Error sending order confirmation email: {mailEx.Message}");
+                }
+
                 return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
             }
             catch (Exception ex)
