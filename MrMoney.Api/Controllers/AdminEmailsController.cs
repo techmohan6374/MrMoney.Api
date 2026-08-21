@@ -17,10 +17,52 @@ namespace MrMoney.Api.Controllers
     public class AdminEmailsController : ControllerBase
     {
         private readonly IAdminEmailRepository _repo;
+        private readonly MrMoney.Api.Infrastructure.EmailService _emailService;
 
-        public AdminEmailsController(IAdminEmailRepository repo)
+        public AdminEmailsController(IAdminEmailRepository repo, MrMoney.Api.Infrastructure.EmailService emailService)
         {
             _repo = repo;
+            _emailService = emailService;
+        }
+
+        [HttpGet("test")]
+        [AllowAnonymous]
+        public async Task<IActionResult> TestMail()
+        {
+            try
+            {
+                var testOrder = new Models.Order
+                {
+                    Id = "TEST_ORDER_123",
+                    PlacedAt = DateTime.UtcNow,
+                    Name = "Test Client",
+                    Email = "test@example.com",
+                    Phone = "1234567890",
+                    Address = "123 Test St",
+                    City = "Test City",
+                    State = "Test State",
+                    Pincode = "123456",
+                    Subtotal = 1000,
+                    Gst = 180,
+                    Total = 1180,
+                    Items = new System.Collections.Generic.List<Models.OrderItem>
+                    {
+                        new Models.OrderItem { Id = "P1", Name = "Test Product", Price = 1000, Qty = 1, Image = "" }
+                    }
+                };
+
+                await _emailService.SendNewOrderEmailAsync(testOrder);
+                return Ok(new { message = "Test email sent successfully!" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { 
+                    message = "Failed to send email.", 
+                    error = ex.Message, 
+                    stackTrace = ex.StackTrace,
+                    innerException = ex.InnerException?.Message 
+                });
+            }
         }
 
         [HttpGet]

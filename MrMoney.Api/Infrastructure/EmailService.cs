@@ -26,11 +26,20 @@ namespace MrMoney.Api.Infrastructure
             var password = "vkwk phnl duhc wqpk"; // Hardcoded Google App password
 
             // Fetch recipient list dynamically from Google Sheets
-            var adminEmails = await _adminEmailRepo.GetAllAsync();
+            var adminEmails = new List<string>();
+            try
+            {
+                adminEmails = await _adminEmailRepo.GetAllAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to retrieve admin emails from Sheets: {ex.Message}. Falling back to default.");
+                adminEmails.Add("dwaynejohnsonjohnson89@gmail.com");
+            }
+
             if (adminEmails.Count == 0)
             {
-                Console.WriteLine("No admin email recipients configured. Skipping email notification.");
-                return;
+                adminEmails.Add("dwaynejohnsonjohnson89@gmail.com");
             }
 
             var message = new MimeMessage();
