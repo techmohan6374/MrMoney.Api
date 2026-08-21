@@ -11,39 +11,26 @@ namespace MrMoney.Api.Repositories
     public class ProductRepository : IProductRepository
     {
         private readonly GoogleSheetsClient _sheets;
-        private readonly LocalFileStorage _local;
-        private const string LocalKey = "products";
 
-        public ProductRepository(GoogleSheetsClient sheets, LocalFileStorage local)
+        public ProductRepository(GoogleSheetsClient sheets)
         {
             _sheets = sheets;
-            _local = local;
         }
 
         public async Task<List<Product>> GetAllAsync()
         {
-            List<Product> list;
             if (!_sheets.IsConfigured)
             {
-                list = await _local.ReadListAsync<Product>(LocalKey);
+                throw new InvalidOperationException("Google Sheets is not configured.");
             }
-            else
+
+            var rows = await _sheets.GetAllRowsAsync(GoogleSheetsClient.ProductsSheet);
+            var list = new List<Product>();
+            
+            // Row 0 is the header; data starts at row 1
+            for (int i = 1; i < rows.Count; i++)
             {
-                try
-                {
-                    var rows = await _sheets.GetAllRowsAsync(GoogleSheetsClient.ProductsSheet);
-                    list = new List<Product>();
-                    // Row 0 is the header; data starts at row 1
-                    for (int i = 1; i < rows.Count; i++)
-                    {
-                        list.Add(MapRowToProduct(rows[i]));
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error reading products from Google Sheets, falling back to local file: {ex.Message}");
-                    list = await _local.ReadListAsync<Product>(LocalKey);
-                }
+                list.Add(MapRowToProduct(rows[i]));
             }
 
             if (list.Count == 0)
@@ -104,96 +91,96 @@ namespace MrMoney.Api.Repositories
                 new Product
                 {
                     Id = "p003",
-                    Name = "Restaurant Menu Flyer",
-                    Slug = "restaurant-menu-flyer",
-                    Category = "design-printing",
-                    Subcategory = "flyers",
-                    Price = 549,
-                    OriginalPrice = 849,
-                    Rating = 4.6,
-                    ReviewCount = 67,
-                    Image = "/documents/images/Designs/Flyer/5.jpg",
-                    Images = new List<string> { "/documents/images/Designs/Flyer/5.jpg", "/documents/images/Designs/Flyer/6.jpg" },
-                    Description = "Professional restaurant and café menu flyer designs with elegant food styling.",
-                    Features = new List<string> { "Both Sides Design", "Lamination Ready", "Multiple Layouts", "Source File Included" },
-                    Tags = new List<string> { "flyer", "restaurant", "menu", "food" },
-                    Badge = null,
-                    InStock = true
-                },
-                new Product
-                {
-                    Id = "p004",
-                    Name = "Premium Business Card Design",
-                    Slug = "premium-business-card",
+                    Name = "Corporate Business Card",
+                    Slug = "corporate-business-card",
                     Category = "design-printing",
                     Subcategory = "business-cards",
                     Price = 299,
                     OriginalPrice = 499,
                     Rating = 4.9,
-                    ReviewCount = 256,
+                    ReviewCount = 156,
                     Image = "/documents/images/Designs/Business Cards/1.jpg",
                     Images = new List<string> { "/documents/images/Designs/Business Cards/1.jpg", "/documents/images/Designs/Business Cards/2.jpg" },
-                    Description = "Elegant and professional business card designs that make a lasting first impression. Corporate, minimal, or creative styles.",
-                    Features = new List<string> { "Standard 3.5×2 inch", "Both Sides Design", "Print-Ready PDF", "Spot UV Ready", "Same Day Delivery" },
-                    Tags = new List<string> { "business card", "visiting card", "corporate", "print" },
+                    Description = "Professional double-sided business card designs tailored to your corporate identity.",
+                    Features = new List<string> { "Double-Sided Design", "Standard 3.5\"x2\" Size", "CMYK Print-Ready PDF", "Source Vector Files" },
+                    Tags = new List<string> { "business card", "corporate", "identity", "print" },
                     Badge = "Top Rated",
                     InStock = true
                 },
                 new Product
                 {
-                    Id = "p005",
-                    Name = "Creative Visiting Card",
-                    Slug = "creative-visiting-card",
+                    Id = "p004",
+                    Name = "Vibrant Digital Visiting Card",
+                    Slug = "vibrant-digital-visiting-card",
                     Category = "design-printing",
                     Subcategory = "business-cards",
-                    Price = 349,
-                    OriginalPrice = 599,
-                    Rating = 4.7,
-                    ReviewCount = 143,
+                    Price = 199,
+                    OriginalPrice = 349,
+                    Rating = 4.6,
+                    ReviewCount = 74,
                     Image = "/documents/images/Designs/Business Cards/3.jpg",
                     Images = new List<string> { "/documents/images/Designs/Business Cards/3.jpg" },
-                    Description = "Creative and artistic business card designs with unique shapes and layouts for creative professionals.",
-                    Features = new List<string> { "Die-Cut Options", "Luxury Paper Options", "Gold Foil Ready", "Custom Shapes" },
-                    Tags = new List<string> { "business card", "creative", "luxury" },
-                    Badge = null,
+                    Description = "Vibrant digital cards perfect for sharing on WhatsApp or email.",
+                    Features = new List<string> { "Tap-to-Action Buttons", "Vibrant Digital Format", "Shareable PDF/JPG", "Interactive Links" },
+                    Tags = new List<string> { "digital card", "visiting card", "whatsapp", "interactive" },
+                    Badge = "Best Value",
+                    InStock = true
+                },
+                new Product
+                {
+                    Id = "p005",
+                    Name = "Modern Professional Resume",
+                    Slug = "modern-professional-resume",
+                    Category = "design-printing",
+                    Subcategory = "resumes",
+                    Price = 349,
+                    OriginalPrice = 599,
+                    Rating = 4.8,
+                    ReviewCount = 112,
+                    Image = "/documents/images/Designs/Resume/1.jpg",
+                    Images = new List<string> { "/documents/images/Designs/Resume/1.jpg", "/documents/images/Designs/Resume/2.jpg" },
+                    Description = "ATS-friendly modern resume designs to help you land your dream job.",
+                    Features = new List<string> { "ATS-Optimized Layout", "Editable MS Word & PDF", "Cover Letter Template", "1-Page or 2-Page Options" },
+                    Tags = new List<string> { "resume", "cv", "career", "job application" },
+                    Badge = "Popular",
                     InStock = true
                 },
                 new Product
                 {
                     Id = "p006",
-                    Name = "Professional Resume Design",
-                    Slug = "professional-resume",
+                    Name = "Creative Infographic CV",
+                    Slug = "creative-infographic-cv",
                     Category = "design-printing",
                     Subcategory = "resumes",
-                    Price = 699,
-                    OriginalPrice = 1199,
-                    Rating = 4.9,
-                    ReviewCount = 312,
-                    Image = "/documents/images/Designs/Resume/1.jpg",
-                    Images = new List<string> { "/documents/images/Designs/Resume/1.jpg", "/documents/images/Designs/Resume/2.jpg" },
-                    Description = "ATS-friendly professional resume design that gets you noticed by recruiters. Modern, clean layouts with strong visual hierarchy.",
-                    Features = new List<string> { "ATS Compatible", "Word + PDF Format", "Cover Letter Included", "LinkedIn Banner", "5 Color Variants" },
-                    Tags = new List<string> { "resume", "cv", "job", "career", "professional" },
-                    Badge = "Best Seller",
+                    Price = 449,
+                    OriginalPrice = 699,
+                    Rating = 4.7,
+                    ReviewCount = 67,
+                    Image = "/documents/images/Designs/Resume/3.jpg",
+                    Images = new List<string> { "/documents/images/Designs/Resume/3.jpg" },
+                    Description = "Visual-heavy infographic CVs perfect for creative, design and marketing fields.",
+                    Features = new List<string> { "Creative Infographics", "Vibrant Theme Options", "Highly Visual Layout", "Free Icon Pack" },
+                    Tags = new List<string> { "cv", "resume", "infographic", "creative cv" },
+                    Badge = "Premium",
                     InStock = true
                 },
                 new Product
                 {
                     Id = "p007",
-                    Name = "Creative Resume / Portfolio",
-                    Slug = "creative-resume-portfolio",
-                    Category = "design-printing",
-                    Subcategory = "resumes",
-                    Price = 899,
-                    OriginalPrice = 1499,
-                    Rating = 4.8,
-                    ReviewCount = 178,
-                    Image = "/documents/images/Designs/Resume/3.jpg",
-                    Images = new List<string> { "/documents/images/Designs/Resume/3.jpg" },
-                    Description = "Creative resume and portfolio design for designers, artists, and creative professionals that stand out.",
-                    Features = new List<string> { "2 Page Resume", "Portfolio Pages", "Infographic Style", "Editable in Canva", "Print Ready" },
-                    Tags = new List<string> { "resume", "portfolio", "creative", "designer" },
-                    Badge = "Premium",
+                    Name = "Business Landing Page Web App",
+                    Slug = "business-landing-page",
+                    Category = "software-development",
+                    Subcategory = "web-applications",
+                    Price = 9999,
+                    OriginalPrice = 14999,
+                    Rating = 4.9,
+                    ReviewCount = 42,
+                    Image = "/documents/images/Websites/Landing Page/1.jpg",
+                    Images = new List<string> { "/documents/images/Websites/Landing Page/1.jpg", "/documents/images/Websites/Landing Page/2.jpg" },
+                    Description = "High-converting, responsive landing page built with modern frontend frameworks.",
+                    Features = new List<string> { "React / Next.js Setup", "Responsive Design", "SEO Optimized", "Contact Form + Analytics", "1 Month Free Support" },
+                    Tags = new List<string> { "website", "landing page", "web development", "nextjs" },
+                    Badge = "Enterprise",
                     InStock = true
                 },
                 new Product
@@ -233,28 +220,10 @@ namespace MrMoney.Api.Repositories
 
             if (!_sheets.IsConfigured)
             {
-                var all = await _local.ReadListAsync<Product>(LocalKey);
-                all.Add(product);
-                await _local.WriteListAsync(LocalKey, all);
-                return product;
+                throw new InvalidOperationException("Google Sheets is not configured.");
             }
 
-            try
-            {
-                await _sheets.AppendRowAsync(GoogleSheetsClient.ProductsSheet, MapProductToRow(product));
-                // Also write to local storage as double-backup/sync
-                var localList = await _local.ReadListAsync<Product>(LocalKey);
-                localList.Add(product);
-                await _local.WriteListAsync(LocalKey, localList);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error writing product to Google Sheets, using local fallback: {ex.Message}");
-                var all = await _local.ReadListAsync<Product>(LocalKey);
-                all.Add(product);
-                await _local.WriteListAsync(LocalKey, all);
-            }
-
+            await _sheets.AppendRowAsync(GoogleSheetsClient.ProductsSheet, MapProductToRow(product));
             return product;
         }
 
@@ -262,101 +231,38 @@ namespace MrMoney.Api.Repositories
         {
             if (!_sheets.IsConfigured)
             {
-                var all = await _local.ReadListAsync<Product>(LocalKey);
-                var idx = all.FindIndex(p => p.Id == product.Id);
-                if (idx != -1)
-                {
-                    all[idx] = product;
-                    await _local.WriteListAsync(LocalKey, all);
-                    return product;
-                }
-                throw new KeyNotFoundException($"Product '{product.Id}' not found in local storage.");
+                throw new InvalidOperationException("Google Sheets is not configured.");
             }
 
-            try
+            var rows = await _sheets.GetAllRowsAsync(GoogleSheetsClient.ProductsSheet);
+            for (int i = 1; i < rows.Count; i++)
             {
-                var rows = await _sheets.GetAllRowsAsync(GoogleSheetsClient.ProductsSheet);
-                for (int i = 1; i < rows.Count; i++)
+                if (GetCell(rows[i], 0) == product.Id)
                 {
-                    if (GetCell(rows[i], 0) == product.Id)
-                    {
-                        await _sheets.UpdateRowAsync(GoogleSheetsClient.ProductsSheet, i + 1, MapProductToRow(product));
-                        
-                        // Update local as well
-                        var localList = await _local.ReadListAsync<Product>(LocalKey);
-                        var idx = localList.FindIndex(p => p.Id == product.Id);
-                        if (idx != -1)
-                        {
-                            localList[idx] = product;
-                            await _local.WriteListAsync(LocalKey, localList);
-                        }
-                        
-                        return product;
-                    }
-                }
-                throw new KeyNotFoundException($"Product '{product.Id}' not found in Google Sheets.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error updating product in Google Sheets, using local fallback: {ex.Message}");
-                var all = await _local.ReadListAsync<Product>(LocalKey);
-                var idx = all.FindIndex(p => p.Id == product.Id);
-                if (idx != -1)
-                {
-                    all[idx] = product;
-                    await _local.WriteListAsync(LocalKey, all);
+                    await _sheets.UpdateRowAsync(GoogleSheetsClient.ProductsSheet, i + 1, MapProductToRow(product));
                     return product;
                 }
-                throw new KeyNotFoundException($"Product '{product.Id}' not found.");
             }
+            throw new KeyNotFoundException($"Product '{product.Id}' not found in Google Sheets.");
         }
 
         public async Task DeleteAsync(string id)
         {
             if (!_sheets.IsConfigured)
             {
-                var all = await _local.ReadListAsync<Product>(LocalKey);
-                var item = all.FirstOrDefault(p => p.Id == id);
-                if (item != null)
-                {
-                    all.Remove(item);
-                    await _local.WriteListAsync(LocalKey, all);
-                }
-                return;
+                throw new InvalidOperationException("Google Sheets is not configured.");
             }
 
-            try
+            var rows = await _sheets.GetAllRowsAsync(GoogleSheetsClient.ProductsSheet);
+            for (int i = 1; i < rows.Count; i++)
             {
-                var rows = await _sheets.GetAllRowsAsync(GoogleSheetsClient.ProductsSheet);
-                for (int i = 1; i < rows.Count; i++)
+                if (GetCell(rows[i], 0) == id)
                 {
-                    if (GetCell(rows[i], 0) == id)
-                    {
-                        await _sheets.DeleteRowAsync(GoogleSheetsClient.ProductsSheet, i + 1);
-                        
-                        // Update local as well
-                        var localList = await _local.ReadListAsync<Product>(LocalKey);
-                        var item = localList.FirstOrDefault(p => p.Id == id);
-                        if (item != null)
-                        {
-                            localList.Remove(item);
-                            await _local.WriteListAsync(LocalKey, localList);
-                        }
-                        return;
-                    }
+                    await _sheets.DeleteRowAsync(GoogleSheetsClient.ProductsSheet, i + 1);
+                    return;
                 }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error deleting product in Google Sheets, using local fallback: {ex.Message}");
-                var all = await _local.ReadListAsync<Product>(LocalKey);
-                var item = all.FirstOrDefault(p => p.Id == id);
-                if (item != null)
-                {
-                    all.Remove(item);
-                    await _local.WriteListAsync(LocalKey, all);
-                }
-            }
+            throw new KeyNotFoundException($"Product '{id}' not found in Google Sheets.");
         }
 
         // ── Mapping ──────────────────────────────────────────────────────────

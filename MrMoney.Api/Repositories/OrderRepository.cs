@@ -11,37 +11,26 @@ namespace MrMoney.Api.Repositories
     public class OrderRepository : IOrderRepository
     {
         private readonly GoogleSheetsClient _sheets;
-        private readonly LocalFileStorage _local;
-        private const string LocalKey = "orders";
 
-        public OrderRepository(GoogleSheetsClient sheets, LocalFileStorage local)
+        public OrderRepository(GoogleSheetsClient sheets)
         {
             _sheets = sheets;
-            _local = local;
         }
 
         public async Task<List<Order>> GetAllAsync()
         {
             if (!_sheets.IsConfigured)
             {
-                return await _local.ReadListAsync<Order>(LocalKey);
+                throw new InvalidOperationException("Google Sheets is not configured.");
             }
 
-            try
+            var rows = await _sheets.GetAllRowsAsync(GoogleSheetsClient.OrdersSheet);
+            var list = new List<Order>();
+            for (int i = 1; i < rows.Count; i++)
             {
-                var rows = await _sheets.GetAllRowsAsync(GoogleSheetsClient.OrdersSheet);
-                var list = new List<Order>();
-                for (int i = 1; i < rows.Count; i++)
-                {
-                    list.Add(MapRowToOrder(rows[i]));
-                }
-                return list;
+                list.Add(MapRowToOrder(rows[i]));
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error reading orders from Google Sheets, falling back to local: {ex.Message}");
-                return await _local.ReadListAsync<Order>(LocalKey);
-            }
+            return list;
         }
 
         public async Task<List<Order>> GetByUserIdAsync(string userId)
@@ -65,87 +54,32 @@ namespace MrMoney.Api.Repositories
 
             if (!_sheets.IsConfigured)
             {
-                var all = await _local.ReadListAsync<Order>(LocalKey);
-                all.Insert(0, order);
-                await _local.WriteListAsync(LocalKey, all);
-                return order;
+                throw new InvalidOperationException("Google Sheets is not configured.");
             }
 
-            try
-            {
-                await _sheets.AppendRowAsync(GoogleSheetsClient.OrdersSheet, MapOrderToRow(order));
-                
-                // Write to local as well
-                var localList = await _local.ReadListAsync<Order>(LocalKey);
-                localList.Insert(0, order);
-                await _local.WriteListAsync(LocalKey, localList);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error appending order to Google Sheets, using local: {ex.Message}");
-                var all = await _local.ReadListAsync<Order>(LocalKey);
-                all.Insert(0, order);
-                await _local.WriteListAsync(LocalKey, all);
-            }
-
+            await _sheets.AppendRowAsync(GoogleSheetsClient.OrdersSheet, MapOrderToRow(order));
             return order;
         }
 
         public async Task<Order> UpdateStatusAsync(string id, string status)
         {
-            Order? order = null;
-
             if (!_sheets.IsConfigured)
             {
-                var all = await _local.ReadListAsync<Order>(LocalKey);
-                order = all.FirstOrDefault(o => o.Id == id);
-                if (order != null)
+                throw new InvalidOperationException("Google Sheets is not configured.");
+            }
+
+            var rows = await _sheets.GetAllRowsAsync(GoogleSheetsClient.OrdersSheet);
+            for (int i = 1; i < rows.Count; i++)
+            {
+                if (GetCell(rows[i], 0) == id)
                 {
+                    var order = MapRowToOrder(rows[i]);
                     order.Status = status;
-                    await _local.WriteListAsync(LocalKey, all);
+                    await _sheets.UpdateRowAsync(GoogleSheetsClient.OrdersSheet, i + 1, MapOrderToRow(order));
                     return order;
                 }
-                throw new KeyNotFoundException($"Order '{id}' not found in local storage.");
             }
-
-            try
-            {
-                var rows = await _sheets.GetAllRowsAsync(GoogleSheetsClient.OrdersSheet);
-                for (int i = 1; i < rows.Count; i++)
-                {
-                    if (GetCell(rows[i], 0) == id)
-                    {
-                        order = MapRowToOrder(rows[i]);
-                        order.Status = status;
-                        await _sheets.UpdateRowAsync(GoogleSheetsClient.OrdersSheet, i + 1, MapOrderToRow(order));
-
-                        // Update local list
-                        var localList = await _local.ReadListAsync<Order>(LocalKey);
-                        var localOrder = localList.FirstOrDefault(o => o.Id == id);
-                        if (localOrder != null)
-                        {
-                            localOrder.Status = status;
-                            await _local.WriteListAsync(LocalKey, localList);
-                        }
-
-                        return order;
-                    }
-                }
-                throw new KeyNotFoundException($"Order '{id}' not found in Google Sheets.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error updating order status in Google Sheets, using local: {ex.Message}");
-                var all = await _local.ReadListAsync<Order>(LocalKey);
-                order = all.FirstOrDefault(o => o.Id == id);
-                if (order != null)
-                {
-                    order.Status = status;
-                    await _local.WriteListAsync(LocalKey, all);
-                    return order;
-                }
-                throw new KeyNotFoundException($"Order '{id}' not found.");
-            }
+            throw new KeyNotFoundException($"Order '{id}' not found in Google Sheets.");
         }
 
         // ── Mapping ──────────────────────────────────────────────────────────
