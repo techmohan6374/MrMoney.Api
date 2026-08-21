@@ -83,12 +83,13 @@ builder.Services
 builder.Services.AddSingleton<GoogleSheetsClient>();
 builder.Services.AddSingleton<CloudinaryClient>();
 builder.Services.AddSingleton<LocalFileStorage>();
-builder.Services.AddSingleton<EmailService>();
 
 // ── Repositories (Scoped) ─────────────────────────────────────────────────────
 builder.Services.AddScoped<IUserRepository,        UserRepository>();
 builder.Services.AddScoped<IProductRepository,     ProductRepository>();
 builder.Services.AddScoped<IOrderRepository,       OrderRepository>();
+builder.Services.AddScoped<IAdminEmailRepository,  AdminEmailRepository>();
+builder.Services.AddScoped<EmailService>();
 
 // ─────────────────────────────────────────────────────────────────────────────
 var app = builder.Build();

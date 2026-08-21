@@ -23,6 +23,7 @@ namespace MrMoney.Api.Infrastructure
         public const string UsersSheet = "Users";
         public const string ProductsSheet = "Products";
         public const string OrdersSheet = "Orders";
+        public const string AdminEmailsSheet = "AdminEmails";
 
         private readonly SheetsService? _service;
         private readonly string _spreadsheetId;
@@ -208,7 +209,8 @@ namespace MrMoney.Api.Infrastructure
             {
                 [UsersSheet] = new List<object> { "Id", "Email", "Name", "Picture", "Role", "Provider", "JoinedAt", "LastLoginAt" },
                 [ProductsSheet] = new List<object> { "Id", "Name", "Slug", "Category", "Subcategory", "Price", "OriginalPrice", "Rating", "ReviewCount", "Image", "ImagesJson", "Description", "FeaturesJson", "TagsJson", "Badge", "InStock" },
-                [OrdersSheet] = new List<object> { "Id", "UserId", "ItemsJson", "Subtotal", "Gst", "Total", "Name", "Email", "Phone", "Address", "City", "State", "Pincode", "Notes", "Status", "PaymentMethod", "PaymentScreenshotUrl", "PlacedAt" }
+                [OrdersSheet] = new List<object> { "Id", "UserId", "ItemsJson", "Subtotal", "Gst", "Total", "Name", "Email", "Phone", "Address", "City", "State", "Pincode", "Notes", "Status", "PaymentMethod", "PaymentScreenshotUrl", "PlacedAt" },
+                [AdminEmailsSheet] = new List<object> { "Email" }
             };
 
             var addSheetRequests = new List<Request>();

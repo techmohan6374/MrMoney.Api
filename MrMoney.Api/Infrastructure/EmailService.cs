@@ -5,38 +5,40 @@ using System.Net.Mail;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using MrMoney.Api.Models;
+using MrMoney.Api.Repositories;
 
 namespace MrMoney.Api.Infrastructure
 {
     public class EmailService
     {
-        private readonly IConfiguration _configuration;
+        private readonly IAdminEmailRepository _adminEmailRepo;
 
-        public EmailService(IConfiguration configuration)
+        public EmailService(IAdminEmailRepository adminEmailRepo)
         {
-            _configuration = configuration;
+            _adminEmailRepo = adminEmailRepo;
         }
 
         public async Task SendNewOrderEmailAsync(Order order)
         {
-            var host = _configuration["Smtp:Host"] ?? "smtp.gmail.com";
-            var portStr = _configuration["Smtp:Port"] ?? "587";
-            var username = _configuration["Smtp:Username"];
-            var password = _configuration["Smtp:Password"];
-            var adminEmail = _configuration["Smtp:AdminEmail"] ?? "dwaynejohnsonjohnson89@gmail.com";
+            var host = "smtp.gmail.com";
+            var port = 587;
+            var username = "mohanmano2020@gmail.com";
+            var password = "vkwk phnl duhc wqpk"; // Hardcoded Google App password
 
-            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+            // Fetch recipient list dynamically from Google Sheets
+            var adminEmails = await _adminEmailRepo.GetAllAsync();
+            if (adminEmails.Count == 0)
             {
-                Console.WriteLine("SMTP credentials are not configured in appsettings.json. Skipping email notification.");
+                Console.WriteLine("No admin email recipients configured. Skipping email notification.");
                 return;
             }
 
-            int port = 587;
-            int.TryParse(portStr, out port);
-
             var mail = new MailMessage();
             mail.From = new MailAddress(username, "StarGraphix Order Notifications");
-            mail.To.Add(adminEmail);
+            foreach (var email in adminEmails)
+            {
+                mail.To.Add(email);
+            }
             mail.Subject = $"New Order Placed: #{order.Id} - ₹{order.Total:N0}";
             mail.IsBodyHtml = true;
             mail.Body = GenerateHtmlBody(order);
