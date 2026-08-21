@@ -13,7 +13,7 @@ namespace MrMoney.Api.Infrastructure
         private readonly HttpClient _httpClient;
 
         // The /exec URL you get after deploying OrderEmailApi.gs as a Web App
-        private const string AppsScriptUrl = "https://script.google.com/macros/s/AKfycbw4hCHRCdyP66NwJB5u_O4ssrAjr7qBhqYzfw_jZnZt91XK6tgwerzrmDB9oTZaZKJ0/exec";
+        private const string AppsScriptUrl = "https://script.google.com/macros/s/AKfycbypPvTfvHiII3IPkorWnf93quMqSBGPATAD1gXnB8a0DCcjuOwWpoLHyIM1RGcK9z0q/exec";
 
         // Must match SHARED_SECRET in the Apps Script file exactly
         private const string SharedSecret = "d268dc82-568c-4e61-969d-925accd851c7";
