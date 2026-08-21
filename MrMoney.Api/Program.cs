@@ -4,7 +4,6 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using MrMoney.Api.Infrastructure;
 using MrMoney.Api.Repositories;
-using MrMoney.Api.Services;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,9 +24,9 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title   = "MrMoney API",
+        Title   = "StarGraphix API",
         Version = "v1",
-        Description = "Personal finance tracker API backed by Google Sheets"
+        Description = "E-commerce and design/printing portal API"
     });
 
     // Add JWT bearer auth to Swagger UI
@@ -81,22 +80,14 @@ builder.Services
     });
 
 // ── Google Sheets Infrastructure ──────────────────────────────────────────────
-// Registered as Singleton — one SheetsService instance shared across all requests
 builder.Services.AddSingleton<GoogleSheetsClient>();
 builder.Services.AddSingleton<CloudinaryClient>();
+builder.Services.AddSingleton<LocalFileStorage>();
 
 // ── Repositories (Scoped) ─────────────────────────────────────────────────────
 builder.Services.AddScoped<IUserRepository,        UserRepository>();
-builder.Services.AddScoped<IAccountRepository,     AccountRepository>();
-builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
-builder.Services.AddScoped<ICategoryRepository,    CategoryRepository>();
-
-// ── Services (Scoped) ─────────────────────────────────────────────────────────
-builder.Services.AddScoped<IAccountService,     AccountService>();
-builder.Services.AddScoped<ITransactionService, TransactionService>();
-builder.Services.AddScoped<ICategoryService,    CategoryService>();
-builder.Services.AddScoped<IUserService,        UserService>();
-builder.Services.AddScoped<IDashboardService,   DashboardService>();
+builder.Services.AddScoped<IProductRepository,     ProductRepository>();
+builder.Services.AddScoped<IOrderRepository,       OrderRepository>();
 
 // ─────────────────────────────────────────────────────────────────────────────
 var app = builder.Build();

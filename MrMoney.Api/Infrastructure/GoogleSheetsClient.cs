@@ -2,73 +2,88 @@ using Google.Apis.Auth.OAuth2;
 using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
-using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace MrMoney.Api.Infrastructure
 {
     /// <summary>
     /// Low-level wrapper around the Google Sheets API v4.
     /// Provides read/write/append/delete operations on a single spreadsheet.
-    /// All sheet names are defined as constants so they match the actual tab names.
+    /// Supports a fallback mode if credentials are not configured.
     /// </summary>
     public class GoogleSheetsClient
     {
         // ── Sheet tab name constants ──────────────────────────────────────────
         public const string UsersSheet = "Users";
-        public const string AccountsSheet = "Accounts";
-        public const string TransactionsSheet = "Transactions";
-        public const string CategoriesSheet = "Categories";
+        public const string ProductsSheet = "Products";
+        public const string OrdersSheet = "Orders";
 
-        private readonly SheetsService _service;
+        private readonly SheetsService? _service;
         private readonly string _spreadsheetId;
+
+        public bool IsConfigured { get; }
 
         public GoogleSheetsClient(IConfiguration configuration)
         {
-            _spreadsheetId = configuration["GoogleSheets:SpreadsheetId"]
-                ?? throw new InvalidOperationException("SpreadsheetId missing");
+            _spreadsheetId = configuration["GoogleSheets:SpreadsheetId"] ?? "";
 
             var projectId = configuration["GoogleServiceAccount:ProjectId"];
             var privateKeyId = configuration["GoogleServiceAccount:PrivateKeyId"];
             var privateKey = configuration["GoogleServiceAccount:PrivateKey"];
-            privateKey = privateKey?.Replace("\\n", "\n");
             var clientEmail = configuration["GoogleServiceAccount:ClientEmail"];
             var clientId = configuration["GoogleServiceAccount:ClientId"];
 
-            Console.WriteLine("ClientEmail: " + clientEmail);
-            Console.WriteLine("ProjectId: " + projectId);
-            Console.WriteLine("PrivateKey: " + privateKey?.Substring(0, 50));
-
-            if (string.IsNullOrWhiteSpace(privateKey))
-                throw new Exception("PrivateKey missing");
-
-            privateKey = privateKey.Replace("\\n", "\n");
-
-            var credentialObject = new
+            if (string.IsNullOrWhiteSpace(privateKey) || string.IsNullOrWhiteSpace(clientEmail) || string.IsNullOrWhiteSpace(_spreadsheetId))
             {
-                type = "service_account",
-                project_id = projectId,
-                private_key_id = privateKeyId,
-                private_key = privateKey.Replace("\\n", "\n"),
-                client_email = clientEmail,
-                client_id = clientId,
-                auth_uri = "https://accounts.google.com/o/oauth2/auth",
-                token_uri = "https://oauth2.googleapis.com/token",
-                auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs",
-                client_x509_cert_url = $"https://www.googleapis.com/robot/v1/metadata/x509/{Uri.EscapeDataString(clientEmail)}"
-            };
+                IsConfigured = false;
+                _service = null;
+                return;
+            }
 
-            var json = JsonSerializer.Serialize(credentialObject);
-
-            var credential = GoogleCredential
-                .FromJson(json)
-                .CreateScoped(SheetsService.Scope.Spreadsheets);
-
-            _service = new SheetsService(new BaseClientService.Initializer
+            try
             {
-                HttpClientInitializer = credential,
-                ApplicationName = "MrMoney"
-            });
+                privateKey = privateKey.Replace("\\n", "\n");
+
+                var credentialObject = new
+                {
+                    type = "service_account",
+                    project_id = projectId,
+                    private_key_id = privateKeyId,
+                    private_key = privateKey,
+                    client_email = clientEmail,
+                    client_id = clientId,
+                    auth_uri = "https://accounts.google.com/o/oauth2/auth",
+                    token_uri = "https://oauth2.googleapis.com/token",
+                    auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs",
+                    client_x509_cert_url = $"https://www.googleapis.com/robot/v1/metadata/x509/{Uri.EscapeDataString(clientEmail)}"
+                };
+
+                var json = JsonSerializer.Serialize(credentialObject);
+
+                var credential = GoogleCredential
+                    .FromJson(json)
+                    .CreateScoped(SheetsService.Scope.Spreadsheets);
+
+                _service = new SheetsService(new BaseClientService.Initializer
+                {
+                    HttpClientInitializer = credential,
+                    ApplicationName = "StarGraphix"
+                });
+
+                IsConfigured = true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error configuring GoogleSheetsClient: " + ex.Message);
+                IsConfigured = false;
+                _service = null;
+            }
         }
 
         // ── Read ─────────────────────────────────────────────────────────────
@@ -76,6 +91,9 @@ namespace MrMoney.Api.Infrastructure
         /// <summary>Returns all rows (including header) from the given sheet.</summary>
         public async Task<IList<IList<object>>> GetAllRowsAsync(string sheetName)
         {
+            if (!IsConfigured || _service == null)
+                throw new InvalidOperationException("GoogleSheetsClient is not configured.");
+
             var range = $"{sheetName}!A:Z";
             var request = _service.Spreadsheets.Values.Get(_spreadsheetId, range);
             var response = await request.ExecuteAsync();
@@ -87,6 +105,9 @@ namespace MrMoney.Api.Infrastructure
         /// <summary>Appends a single row to the end of the sheet.</summary>
         public async Task AppendRowAsync(string sheetName, IList<object> rowValues)
         {
+            if (!IsConfigured || _service == null)
+                throw new InvalidOperationException("GoogleSheetsClient is not configured.");
+
             var range = $"{sheetName}!A1";
             var body = new ValueRange { Values = new List<IList<object>> { rowValues } };
 
@@ -102,6 +123,9 @@ namespace MrMoney.Api.Infrastructure
         /// <summary>Overwrites a specific row (1-based row index) with new values.</summary>
         public async Task UpdateRowAsync(string sheetName, int rowIndex, IList<object> rowValues)
         {
+            if (!IsConfigured || _service == null)
+                throw new InvalidOperationException("GoogleSheetsClient is not configured.");
+
             var range = $"{sheetName}!A{rowIndex}";
             var body = new ValueRange { Values = new List<IList<object>> { rowValues } };
 
@@ -119,6 +143,9 @@ namespace MrMoney.Api.Infrastructure
         /// </summary>
         public async Task DeleteRowAsync(string sheetName, int rowIndex)
         {
+            if (!IsConfigured || _service == null)
+                throw new InvalidOperationException("GoogleSheetsClient is not configured.");
+
             // First get the sheet ID (numeric) for the named sheet
             var sheetId = await GetSheetIdAsync(sheetName);
 
@@ -149,6 +176,9 @@ namespace MrMoney.Api.Infrastructure
         /// <summary>Returns the numeric sheet ID for a given sheet name.</summary>
         private async Task<int> GetSheetIdAsync(string sheetName)
         {
+            if (!IsConfigured || _service == null)
+                throw new InvalidOperationException("GoogleSheetsClient is not configured.");
+
             var spreadsheet = await _service.Spreadsheets.Get(_spreadsheetId).ExecuteAsync();
             var sheet = spreadsheet.Sheets.FirstOrDefault(s =>
                 s.Properties.Title.Equals(sheetName, StringComparison.OrdinalIgnoreCase));
@@ -165,15 +195,20 @@ namespace MrMoney.Api.Infrastructure
         /// </summary>
         public async Task EnsureSheetsExistAsync()
         {
+            if (!IsConfigured || _service == null)
+            {
+                Console.WriteLine("GoogleSheetsClient not configured. Skipping sheets initialization.");
+                return;
+            }
+
             var spreadsheet = await _service.Spreadsheets.Get(_spreadsheetId).ExecuteAsync();
             var existingSheets = spreadsheet.Sheets.Select(s => s.Properties.Title).ToHashSet();
 
             var sheetsToCreate = new Dictionary<string, IList<object>>
             {
-                [UsersSheet] = new List<object> { "Id", "Email", "Name", "Picture", "Currency", "EmailNotifications", "Theme", "CreatedAt", "LastLoginAt" },
-                [AccountsSheet] = new List<object> { "Id", "UserId", "Name", "HolderName", "Balance", "Type", "Color", "IsDefault", "CreatedAt" },
-                [TransactionsSheet] = new List<object> { "Id", "UserId", "AccountId", "Name", "Category", "Amount", "Type", "Description", "Status", "Date", "CreatedAt" },
-                [CategoriesSheet] = new List<object> { "Id", "UserId", "Name", "Icon", "Color", "Type", "CreatedAt" }
+                [UsersSheet] = new List<object> { "Id", "Email", "Name", "Picture", "Role", "Provider", "JoinedAt", "LastLoginAt" },
+                [ProductsSheet] = new List<object> { "Id", "Name", "Slug", "Category", "Subcategory", "Price", "OriginalPrice", "Rating", "ReviewCount", "Image", "ImagesJson", "Description", "FeaturesJson", "TagsJson", "Badge", "InStock" },
+                [OrdersSheet] = new List<object> { "Id", "UserId", "ItemsJson", "Subtotal", "Gst", "Total", "Name", "Email", "Phone", "Address", "City", "State", "Pincode", "Notes", "Status", "PaymentMethod", "PaymentScreenshotUrl", "PlacedAt" }
             };
 
             var addSheetRequests = new List<Request>();

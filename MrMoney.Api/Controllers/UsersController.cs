@@ -1,120 +1,105 @@
+using System;
+using System.Collections.Generic;
+using System.Security.Claims;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MrMoney.Api.DTOs;
-using MrMoney.Api.Infrastructure;
-using MrMoney.Api.Services;
-using System.Security.Claims;
+using MrMoney.Api.Models;
+using MrMoney.Api.Repositories;
 
 namespace MrMoney.Api.Controllers
 {
-    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class UsersController : ControllerBase
     {
-        private readonly IUserService _userService;
-        private readonly CloudinaryClient _cloudinaryClient;
+        private readonly IUserRepository _userRepo;
 
-        // Allowed image MIME types
-        private static readonly HashSet<string> AllowedMimeTypes = new(StringComparer.OrdinalIgnoreCase)
+        public UsersController(IUserRepository userRepo)
         {
-            "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"
-        };
-
-        public UsersController(IUserService userService, CloudinaryClient cloudinaryClient)
-        {
-            _userService = userService;
-            _cloudinaryClient = cloudinaryClient;
+            _userRepo = userRepo;
         }
 
-        /// <summary>Returns the authenticated user's profile.</summary>
-        [HttpGet("me")]
-        public async Task<IActionResult> GetProfile()
+        [HttpGet]
+        public async Task<IActionResult> GetAll()
         {
             try
             {
-                var profile = await _userService.GetProfileAsync(GetUserId());
-                return Ok(profile);
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-        }
-
-        /// <summary>Updates the authenticated user's profile (name, currency, theme, notifications).</summary>
-        [HttpPut("me")]
-        public async Task<IActionResult> UpdateProfile([FromBody] UpdateUserProfileRequest request)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            try
-            {
-                var profile = await _userService.UpdateProfileAsync(GetUserId(), request);
-                return Ok(profile);
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Uploads a new avatar image to Cloudinary and updates the user's picture URL.
-        /// Accepts multipart/form-data with a single file field named "file".
-        /// Max size: 2 MB.
-        /// </summary>
-        [HttpPost("upload-avatar")]
-        [RequestSizeLimit(2 * 1024 * 1024)] // 2 MB hard limit
-        public async Task<IActionResult> UploadAvatar(IFormFile file)
-        {
-            if (file == null || file.Length == 0)
-                return BadRequest(new { message = "No file provided." });
-
-            if (!AllowedMimeTypes.Contains(file.ContentType))
-                return BadRequest(new { message = "Invalid file type. Allowed: JPG, PNG, GIF, WebP." });
-
-            if (file.Length > 2 * 1024 * 1024)
-                return BadRequest(new { message = "File too large. Maximum size is 2 MB." });
-
-            try
-            {
-                var userId = GetUserId();
-
-                // Get current profile to find the old Cloudinary public ID (if any) for deletion
-                var currentProfile = await _userService.GetProfileAsync(userId);
-                var oldPublicId    = CloudinaryClient.ExtractPublicId(currentProfile.Picture);
-
-                // Upload to Cloudinary — replaces/deletes old file if publicId is found
-                string pictureUrl;
-                using (var stream = file.OpenReadStream())
-                {
-                    var safeFileName = $"avatar_{userId}_{Path.GetRandomFileName()}";
-                    pictureUrl = await _cloudinaryClient.UploadAvatarAsync(
-                        stream,
-                        safeFileName,
-                        oldPublicId);
-                }
-
-                // Save the new Cloudinary URL to the user profile
-                var updated = await _userService.UpdateProfileAsync(userId, new UpdateUserProfileRequest
-                {
-                    Picture = pictureUrl
-                });
-
-                return Ok(new UploadAvatarResponse { PictureUrl = updated.Picture });
+                var list = await _userRepo.GetAllAsync();
+                return Ok(list);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = $"Upload failed: {ex.Message}" });
+                return BadRequest(new { message = ex.Message });
             }
         }
 
-        // ── Helper ────────────────────────────────────────────────────────────
+        [HttpGet("me")]
+        public async Task<IActionResult> GetMe()
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized(new { message = "Unauthorized access." });
+                }
 
-        private string GetUserId() =>
-            User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? throw new UnauthorizedAccessException("User ID not found in token.");
+                var profile = await _userRepo.GetByIdAsync(userId);
+                if (profile == null)
+                {
+                    return NotFound(new { message = "User profile not found." });
+                }
+
+                return Ok(profile);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPut("me")]
+        public async Task<IActionResult> UpdateMe([FromBody] UserProfile request)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized(new { message = "Unauthorized access." });
+                }
+
+                var profile = await _userRepo.GetByIdAsync(userId);
+                if (profile == null)
+                {
+                    return NotFound(new { message = "User profile not found." });
+                }
+
+                profile.Name = request.Name;
+                profile.Picture = request.Picture;
+                await _userRepo.UpdateAsync(profile);
+
+                return Ok(profile);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(string id)
+        {
+            try
+            {
+                await _userRepo.DeleteAsync(id);
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
     }
 }
