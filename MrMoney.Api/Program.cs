@@ -89,7 +89,8 @@ builder.Services.AddScoped<IUserRepository,        UserRepository>();
 builder.Services.AddScoped<IProductRepository,     ProductRepository>();
 builder.Services.AddScoped<IOrderRepository,       OrderRepository>();
 builder.Services.AddScoped<IAdminEmailRepository,  AdminEmailRepository>();
-builder.Services.AddScoped<EmailService>();
+// EmailService uses HttpClient — register via AddHttpClient so DI can inject it
+builder.Services.AddHttpClient<EmailService>();
 
 // ─────────────────────────────────────────────────────────────────────────────
 var app = builder.Build();
