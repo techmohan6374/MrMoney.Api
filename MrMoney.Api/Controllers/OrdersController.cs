@@ -31,40 +31,42 @@ namespace MrMoney.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetOrders([FromQuery] string? userId)
+        public async Task<IActionResult> GetOrders([FromQuery] string? userId, [FromQuery] string? email)
         {
             try
             {
                 // Attempt to get user from token claims
                 var tokenUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var tokenEmail = User.FindFirst(ClaimTypes.Email)?.Value;
                 var role = User.FindFirst(ClaimTypes.Role)?.Value;
 
                 // Fall back to query param if token is not available
                 var effectiveUserId = tokenUserId ?? userId;
+                var effectiveEmail = tokenEmail ?? email;
                 var effectiveRole = role;
-
-                if (string.IsNullOrEmpty(effectiveUserId))
-                {
-                    // If no user ID is specified, and they are admin, return all
-                    if (effectiveRole == "admin")
-                    {
-                        var allOrders = await _orderRepo.GetAllAsync();
-                        return Ok(allOrders);
-                    }
-                    // Otherwise ask for identification
-                    return BadRequest(new { message = "User identification is required." });
-                }
 
                 if (effectiveRole == "admin")
                 {
                     var allOrders = await _orderRepo.GetAllAsync();
                     return Ok(allOrders);
                 }
-                else
+
+                if (string.IsNullOrEmpty(effectiveUserId) && string.IsNullOrEmpty(effectiveEmail))
                 {
-                    var userOrders = await _orderRepo.GetByUserIdAsync(effectiveUserId);
-                    return Ok(userOrders);
+                    return Ok(new List<Order>());
                 }
+
+                var all = await _orderRepo.GetAllAsync();
+                var cleanId = effectiveUserId?.Trim() ?? string.Empty;
+                var cleanEmail = effectiveEmail?.Trim() ?? string.Empty;
+
+                var userOrders = all.Where(o =>
+                    (!string.IsNullOrEmpty(cleanId) && o.UserId.Trim().Equals(cleanId, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrEmpty(cleanEmail) && o.Email.Trim().Equals(cleanEmail, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrEmpty(cleanId) && o.Email.Trim().Equals(cleanId, StringComparison.OrdinalIgnoreCase))
+                ).ToList();
+
+                return Ok(userOrders);
             }
             catch (Exception ex)
             {

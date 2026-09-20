@@ -35,17 +35,23 @@ namespace MrMoney.Api.Controllers
         }
 
         [HttpGet("me")]
-        public async Task<IActionResult> GetMe()
+        public async Task<IActionResult> GetMe([FromQuery] string? id, [FromQuery] string? email)
         {
             try
             {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                          ?? User.FindFirst(ClaimTypes.Email)?.Value
+                          ?? id
+                          ?? email;
+
                 if (string.IsNullOrEmpty(userId))
                 {
-                    return Unauthorized(new { message = "Unauthorized access." });
+                    return Unauthorized(new { message = "User identification is required." });
                 }
 
-                var profile = await _userRepo.GetByIdAsync(userId);
+                var profile = await _userRepo.GetByIdAsync(userId)
+                           ?? await _userRepo.GetByEmailAsync(userId);
+
                 if (profile == null)
                 {
                     return NotFound(new { message = "User profile not found." });
@@ -64,20 +70,38 @@ namespace MrMoney.Api.Controllers
         {
             try
             {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                          ?? User.FindFirst(ClaimTypes.Email)?.Value
+                          ?? request.Id
+                          ?? request.Email;
+
                 if (string.IsNullOrEmpty(userId))
                 {
-                    return Unauthorized(new { message = "Unauthorized access." });
+                    return Unauthorized(new { message = "User identification is required." });
                 }
 
-                var profile = await _userRepo.GetByIdAsync(userId);
+                var profile = await _userRepo.GetByIdAsync(userId)
+                           ?? await _userRepo.GetByEmailAsync(userId);
+
+                if (profile == null && !string.IsNullOrEmpty(request.Email))
+                {
+                    profile = await _userRepo.GetByEmailAsync(request.Email);
+                }
+
                 if (profile == null)
                 {
                     return NotFound(new { message = "User profile not found." });
                 }
 
-                profile.Name = request.Name;
-                profile.Picture = request.Picture;
+                if (!string.IsNullOrWhiteSpace(request.Name))
+                {
+                    profile.Name = request.Name.Trim();
+                }
+                if (!string.IsNullOrWhiteSpace(request.Picture))
+                {
+                    profile.Picture = request.Picture.Trim();
+                }
+
                 await _userRepo.UpdateAsync(profile);
 
                 return Ok(profile);

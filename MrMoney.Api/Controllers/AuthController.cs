@@ -51,17 +51,21 @@ namespace MrMoney.Api.Controllers
                     return BadRequest(new { message = "Google User ID and Email are required." });
                 }
 
-                // Upsert user profile
-                var existingUser = await _userRepo.GetByIdAsync(dto.Id);
+                var cleanId = dto.Id.Trim();
+                var cleanEmail = dto.Email.Trim();
+
+                // Upsert user profile: check by ID first, then fallback to Email
+                var existingUser = await _userRepo.GetByIdAsync(cleanId) 
+                                ?? await _userRepo.GetByEmailAsync(cleanEmail);
                 UserProfile user;
 
                 if (existingUser == null)
                 {
                     user = new UserProfile
                     {
-                        Id = dto.Id,
-                        Email = dto.Email,
-                        Name = dto.Name,
+                        Id = cleanId,
+                        Email = cleanEmail,
+                        Name = dto.Name?.Trim() ?? string.Empty,
                         Picture = dto.Picture,
                         Role = "user",
                         Provider = "google",
@@ -72,9 +76,22 @@ namespace MrMoney.Api.Controllers
                 }
                 else
                 {
+                    // Ensure Id matches cleanId if previously matched by email only
+                    if (!string.IsNullOrEmpty(cleanId))
+                    {
+                        existingUser.Id = cleanId;
+                    }
+                    if (!string.IsNullOrEmpty(cleanEmail))
+                    {
+                        existingUser.Email = cleanEmail;
+                    }
+
                     existingUser.LastLoginAt = DateTime.UtcNow;
-                    existingUser.Picture = dto.Picture;
-                    existingUser.Name = dto.Name;
+                    if (!string.IsNullOrWhiteSpace(dto.Picture))
+                        existingUser.Picture = dto.Picture;
+                    if (!string.IsNullOrWhiteSpace(dto.Name))
+                        existingUser.Name = dto.Name.Trim();
+
                     await _userRepo.UpdateAsync(existingUser);
                     user = existingUser;
                 }

@@ -100,7 +100,8 @@ namespace MrMoney.Api.Repositories
             }
 
             var rows = await _sheets.GetAllRowsAsync(GoogleSheetsClient.WebsitesSheet);
-            for (int i = 1; i < rows.Count; i++)
+            var startIdx = rows.Count > 0 && GetCell(rows[0], 0).Equals("Id", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+            for (int i = startIdx; i < rows.Count; i++)
             {
                 if (GetCell(rows[i], 0).Equals(id, StringComparison.OrdinalIgnoreCase))
                 {
@@ -121,7 +122,8 @@ namespace MrMoney.Api.Repositories
             }
 
             var rows = await _sheets.GetAllRowsAsync(GoogleSheetsClient.WebsitesSheet);
-            for (int i = 1; i < rows.Count; i++)
+            var startIdx = rows.Count > 0 && GetCell(rows[0], 0).Equals("Id", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+            for (int i = startIdx; i < rows.Count; i++)
             {
                 if (GetCell(rows[i], 0).Equals(id, StringComparison.OrdinalIgnoreCase))
                 {

@@ -16,6 +16,20 @@ namespace MrMoney.Api.Repositories
             _sheets = sheets;
         }
 
+        private static bool IsHeaderRow(IList<object> row)
+        {
+            if (row == null || row.Count == 0) return false;
+            var col0 = GetCell(row, 0);
+            var col1 = GetCell(row, 1);
+            var col2 = GetCell(row, 2);
+
+            return col0.Equals("Id", StringComparison.OrdinalIgnoreCase)
+                || col0.Equals("UserId", StringComparison.OrdinalIgnoreCase)
+                || col0.Equals("User Id", StringComparison.OrdinalIgnoreCase)
+                || col1.Equals("Email", StringComparison.OrdinalIgnoreCase)
+                || col2.Equals("Name", StringComparison.OrdinalIgnoreCase);
+        }
+
         public async Task<List<UserProfile>> GetAllAsync()
         {
             if (!_sheets.IsConfigured)
@@ -27,10 +41,14 @@ namespace MrMoney.Api.Repositories
             var list = new List<UserProfile>();
             if (rows.Count > 0)
             {
-                var startIdx = GetCell(rows[0], 0).Equals("Id", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+                var startIdx = IsHeaderRow(rows[0]) ? 1 : 0;
                 for (int i = startIdx; i < rows.Count; i++)
                 {
-                    list.Add(MapRowToUser(rows[i]));
+                    var user = MapRowToUser(rows[i]);
+                    if (!string.IsNullOrWhiteSpace(user.Id) || !string.IsNullOrWhiteSpace(user.Email))
+                    {
+                        list.Add(user);
+                    }
                 }
             }
             return list;
@@ -38,14 +56,18 @@ namespace MrMoney.Api.Repositories
 
         public async Task<UserProfile?> GetByIdAsync(string userId)
         {
+            if (string.IsNullOrWhiteSpace(userId)) return null;
             var all = await GetAllAsync();
-            return all.FirstOrDefault(u => u.Id == userId);
+            var target = userId.Trim();
+            return all.FirstOrDefault(u => u.Id.Trim().Equals(target, StringComparison.OrdinalIgnoreCase));
         }
 
         public async Task<UserProfile?> GetByEmailAsync(string email)
         {
+            if (string.IsNullOrWhiteSpace(email)) return null;
             var all = await GetAllAsync();
-            return all.FirstOrDefault(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
+            var target = email.Trim();
+            return all.FirstOrDefault(u => u.Email.Trim().Equals(target, StringComparison.OrdinalIgnoreCase));
         }
 
         public async Task<UserProfile> CreateAsync(UserProfile user)
@@ -67,15 +89,25 @@ namespace MrMoney.Api.Repositories
             }
 
             var rows = await _sheets.GetAllRowsAsync(GoogleSheetsClient.UsersSheet);
-            for (int i = 1; i < rows.Count; i++)
+            var startIdx = (rows.Count > 0 && IsHeaderRow(rows[0])) ? 1 : 0;
+            var cleanId = user.Id?.Trim() ?? string.Empty;
+            var cleanEmail = user.Email?.Trim() ?? string.Empty;
+
+            for (int i = startIdx; i < rows.Count; i++)
             {
-                if (GetCell(rows[i], 0) == user.Id)
+                var rowId = GetCell(rows[i], 0);
+                var rowEmail = GetCell(rows[i], 1);
+
+                bool idMatches = !string.IsNullOrEmpty(cleanId) && rowId.Equals(cleanId, StringComparison.OrdinalIgnoreCase);
+                bool emailMatches = !string.IsNullOrEmpty(cleanEmail) && rowEmail.Equals(cleanEmail, StringComparison.OrdinalIgnoreCase);
+
+                if (idMatches || emailMatches)
                 {
                     await _sheets.UpdateRowAsync(GoogleSheetsClient.UsersSheet, i + 1, MapUserToRow(user));
                     return user;
                 }
             }
-            throw new KeyNotFoundException($"User '{user.Id}' not found in Google Sheets.");
+            throw new KeyNotFoundException($"User '{user.Id}' / '{user.Email}' not found in Google Sheets.");
         }
 
         public async Task DeleteAsync(string userId)
@@ -86,9 +118,13 @@ namespace MrMoney.Api.Repositories
             }
 
             var rows = await _sheets.GetAllRowsAsync(GoogleSheetsClient.UsersSheet);
-            for (int i = 1; i < rows.Count; i++)
+            var startIdx = (rows.Count > 0 && IsHeaderRow(rows[0])) ? 1 : 0;
+            var cleanId = userId?.Trim() ?? string.Empty;
+
+            for (int i = startIdx; i < rows.Count; i++)
             {
-                if (GetCell(rows[i], 0) == userId)
+                var rowId = GetCell(rows[i], 0);
+                if (!string.IsNullOrEmpty(cleanId) && rowId.Equals(cleanId, StringComparison.OrdinalIgnoreCase))
                 {
                     await _sheets.DeleteRowAsync(GoogleSheetsClient.UsersSheet, i + 1);
                     return;
@@ -101,12 +137,12 @@ namespace MrMoney.Api.Repositories
 
         private static IList<object> MapUserToRow(UserProfile u) => new List<object>
         {
-            u.Id,
-            u.Email,
-            u.Name,
-            u.Picture ?? string.Empty,
-            u.Role,
-            u.Provider,
+            u.Id?.Trim() ?? string.Empty,
+            u.Email?.Trim() ?? string.Empty,
+            u.Name?.Trim() ?? string.Empty,
+            u.Picture?.Trim() ?? string.Empty,
+            u.Role?.Trim() ?? "user",
+            u.Provider?.Trim() ?? "google",
             u.JoinedAt.ToString("o"),
             u.LastLoginAt.ToString("o")
         };
@@ -124,6 +160,6 @@ namespace MrMoney.Api.Repositories
         };
 
         private static string GetCell(IList<object> row, int index)
-            => index < row.Count ? row[index]?.ToString() ?? string.Empty : string.Empty;
+            => index < row.Count ? row[index]?.ToString()?.Trim() ?? string.Empty : string.Empty;
     }
 }
