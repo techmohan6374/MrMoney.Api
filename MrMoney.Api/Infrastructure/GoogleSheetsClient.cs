@@ -212,7 +212,7 @@ namespace MrMoney.Api.Infrastructure
                 [ProductsSheet] = new List<object> { "Id", "Name", "Slug", "Category", "Subcategory", "Price", "OriginalPrice", "Rating", "ReviewCount", "Image", "ImagesJson", "Description", "FeaturesJson", "TagsJson", "Badge", "InStock" },
                 [OrdersSheet] = new List<object> { "Id", "UserId", "ItemsJson", "Subtotal", "Gst", "Total", "Name", "Email", "Phone", "Address", "City", "State", "Pincode", "Notes", "Status", "PaymentMethod", "PaymentScreenshotUrl", "PlacedAt" },
                 [AdminEmailsSheet] = new List<object> { "Email" },
-                [WebsitesSheet] = new List<object> { "Id", "Name", "Url", "Description", "Category", "CreatedAt" }
+                [WebsitesSheet] = new List<object> { "Id", "Name", "Url", "Description", "Category", "Username", "Password", "CreatedAt" }
             };
 
             var addSheetRequests = new List<Request>();

@@ -9,6 +9,8 @@ namespace MrMoney.Api.Models
         public string Url { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string Category { get; set; } = "Main";
+        public string? Username { get; set; } = string.Empty;
+        public string? Password { get; set; } = string.Empty;
         public string CreatedAt { get; set; } = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
     }
 }

@@ -174,18 +174,27 @@ namespace MrMoney.Api.Repositories
             w.Url,
             w.Description,
             w.Category,
+            w.Username ?? string.Empty,
+            w.Password ?? string.Empty,
             w.CreatedAt
         };
 
-        private static Website MapRowToWebsite(IList<object> row) => new Website
+        private static Website MapRowToWebsite(IList<object> row)
         {
-            Id = GetCell(row, 0),
-            Name = GetCell(row, 1),
-            Url = GetCell(row, 2),
-            Description = GetCell(row, 3),
-            Category = string.IsNullOrWhiteSpace(GetCell(row, 4)) ? "Main" : GetCell(row, 4),
-            CreatedAt = GetCell(row, 5)
-        };
+            // Support both 8-column layout (with Username, Password) and 6-column legacy layout
+            var hasCredentials = row.Count >= 8;
+            return new Website
+            {
+                Id = GetCell(row, 0),
+                Name = GetCell(row, 1),
+                Url = GetCell(row, 2),
+                Description = GetCell(row, 3),
+                Category = string.IsNullOrWhiteSpace(GetCell(row, 4)) ? "Main" : GetCell(row, 4),
+                Username = hasCredentials ? GetCell(row, 5) : string.Empty,
+                Password = hasCredentials ? GetCell(row, 6) : string.Empty,
+                CreatedAt = hasCredentials ? GetCell(row, 7) : GetCell(row, 5)
+            };
+        }
 
         private static string GetCell(IList<object> row, int index)
         {
